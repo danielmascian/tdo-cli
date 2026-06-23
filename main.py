@@ -9,52 +9,68 @@ class Status(Enum):
     ACTIVE = "active"
     COMPLETED = "completed"
 
-def add(task_properties : dict,task_description : str) -> dict:
-    print("Working add function")
+DATA_FILE = "todo_data.json"
 
-def debug(task_properties : dict) -> dict:
-    for key,value in task_properties.items():
-        print(key , ":" , value)
+def load_tasks() -> list:
+    if os.path.exists(DATA_FILE) and os.path.getsize(DATA_FILE) > 0:
+        with open(DATA_FILE, "r") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                print(f"Warning: {DATA_FILE} is corrupted, starting fresh.")
+                return []
+    return []
 
-def start_program():
-    print("Welcome!")
+
+def save_tasks(tasks: list) -> None:
+    with open(DATA_FILE, "w") as f:
+        json.dump(tasks, f, indent=2)
+
+
+def next_id(tasks: list) -> int:
+    if not tasks:
+        return 1
+    return max(task["id"] for task in tasks) + 1
+
+
+def add(tasks: list, task_description: str) -> dict:
+    now = datetime.now().isoformat()
+    new_task = {
+        "id": next_id(tasks),
+        "description": task_description,
+        "status": Status.ACTIVE.value,
+        "created_at": now,
+        "updated_at": now,
+    }
+    tasks.append(new_task)
+    print(f"Task added successfully (ID: {new_task["id"]})")
+    return new_task
+
+
+def debug(tasks: list) -> None:
+    for task in tasks:
+        print(task)
+
 
 def main():
-    start_program()
-
     if len(sys.argv) < 2:
         print("Usage: main.py <command> [arguments]")
         sys.exit(1)
-    
-    task_function = sys.argv[1]
-    task_description = sys.argv[2]
 
-    task_properties = { 
-        "id": 1,
-        "description": task_description,
-        "status": Status.ACTIVE.value,
-        "created_at": datetime.now().isoformat(),
-        "updated_at": datetime.now().isoformat()
-    }
+    task_function = sys.argv[1]
+    tasks = load_tasks()
 
     match task_function:
         case "add":
-            add(task_properties,task_description)   
-    
+            task_description = sys.argv[2]
+            add(tasks, task_description)
+            save_tasks(tasks)
+        case _:
+            print(f"Unknown command: {task_function}")
+            sys.exit(1)
 
-    debug(task_properties)
-    
-    '''
-    if os.path.exists("todo_data.json"):
-        print("File exists")
-        with open("todo_data.json", "r") as f:
-            data = json.load(f)
-        print(data)
-    else:
-        print("File does not exist")
-        data = []  
+    #debug(tasks)
 
-    return data
-    '''
+
 if __name__ == "__main__":
     main()
