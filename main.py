@@ -46,6 +46,20 @@ def add(tasks: list, task_description: str) -> dict:
     print(f"Task added successfully (ID: {new_task["id"]})")
     return new_task
 
+def remove(tasks: list, task_id: int) -> list:
+    if not tasks:
+        print("List is empty, nothing to remove.")
+        return tasks
+
+    original_length = len(tasks)
+    tasks[:] = [task for task in tasks if task["id"] != task_id]
+
+    if len(tasks) == original_length:
+        print(f"No task found with ID: {task_id}")
+    else:
+        print(f"Task removed successfully (ID: {task_id})")
+
+    return tasks
 
 def debug(tasks: list) -> None:
     for task in tasks:
@@ -64,6 +78,10 @@ def main():
         case "add":
             task_description = sys.argv[2]
             add(tasks, task_description)
+            save_tasks(tasks)
+        case "remove":
+            task_description = sys.argv[2]
+            remove(tasks,int(task_description))
             save_tasks(tasks)
         case _:
             print(f"Unknown command: {task_function}")
