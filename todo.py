@@ -3,7 +3,7 @@ import os
 import sys
 from datetime import datetime
 from enum import Enum
-
+from todo_help import help_command
 
 class Status(Enum):
     TODO = "to-do"
@@ -29,12 +29,11 @@ def save_tasks(tasks: list) -> None:
     with open(DATA_FILE, "w") as f:
         json.dump(tasks, f, indent=2)
 
-
 def require_args(count: int, usage: str) -> None:
     if len(sys.argv) < count:
         print(f"Usage: {usage}")
+        print("Run 'python3 main.py help' to see all available commands.")
         sys.exit(1)
-
 
 def get_task_id() -> int:
     require_args(3, "main.py <command> <task_id>")
@@ -45,6 +44,14 @@ def get_task_id() -> int:
         print("Task ID must be a number.")
         sys.exit(1)
 
+def validate_description(description: str) -> str:
+    description = description.strip()
+
+    if not description:
+        print("Task description cannot be empty.")
+        sys.exit(1)
+
+    return description
 
 def check_list(tasks: list) -> bool:
     if not tasks:
@@ -60,7 +67,7 @@ def next_id(tasks: list) -> int:
 
 
 def add(tasks: list, description: str) -> bool:
-    now = datetime.now().isoformat()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     task = {
         "id": next_id(tasks),
@@ -96,7 +103,7 @@ def update(tasks: list, task_id: int, description: str) -> bool:
     for task in tasks:
         if task["id"] == task_id:
             task["description"] = description
-            task["updated_at"] = datetime.now().isoformat()
+            task["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"Task updated successfully (ID: {task_id})")
             return True
 
@@ -111,7 +118,7 @@ def mark_status(tasks: list, task_id: int, status: Status) -> bool:
     for task in tasks:
         if task["id"] == task_id:
             task["status"] = status.value
-            task["updated_at"] = datetime.now().isoformat()
+            task["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"Task marked as {status.value} (ID: {task_id})")
             return True
 
@@ -126,7 +133,10 @@ def list_all(tasks: list, status: Status | None = None) -> bool:
 
     for task in tasks:
         if status is None or task["status"] == status.value:
-            print(task)
+            print(f"[{task['id']}] {task['description']}\n"
+                f"  Status : {task['status']}\n"
+                f"  Created: {task['created_at']}\n"
+                f"  Updated: {task['updated_at']}\n")
             found = True
 
     if not found:
@@ -145,14 +155,16 @@ def main():
     match command:
         case "add":
             require_args(3, "main.py add <task_description>")
-            changed = add(tasks, sys.argv[2])
+            description = validate_description(" ".join(sys.argv[2:]))
+            changed = add(tasks, description)
 
         case "remove":
             changed = remove(tasks, get_task_id())
 
         case "update":
             require_args(4, "main.py update <task_id> <new_description>")
-            changed = update(tasks, get_task_id(), sys.argv[3])
+            description = validate_description(" ".join(sys.argv[3:]))
+            changed = update(tasks, get_task_id(), description)
 
         case "mark-in-progress":
             changed = mark_status(tasks, get_task_id(), Status.ACTIVE)
@@ -170,8 +182,11 @@ def main():
 
         case "list-done":
             list_all(tasks, Status.COMPLETED)
+        case "help":
+            help_command()
         case _:
             print(f"Unknown command: {command}")
+            print("Run 'python3 main.py help' to see all available commands.")
             sys.exit(1)
 
     if changed:
