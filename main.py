@@ -30,6 +30,22 @@ def save_tasks(tasks: list) -> None:
         json.dump(tasks, f, indent=2)
 
 
+def require_args(count: int, usage: str) -> None:
+    if len(sys.argv) < count:
+        print(f"Usage: {usage}")
+        sys.exit(1)
+
+
+def get_task_id() -> int:
+    require_args(3, "main.py <command> <task_id>")
+
+    try:
+        return int(sys.argv[2])
+    except ValueError:
+        print("Task ID must be a number.")
+        sys.exit(1)
+
+
 def check_list(tasks: list) -> bool:
     if not tasks:
         print("List is empty.")
@@ -43,47 +59,44 @@ def next_id(tasks: list) -> int:
     return max(task["id"] for task in tasks) + 1
 
 
-def add(tasks: list, task_description: str) -> dict:
+def add(tasks: list, description: str) -> bool:
     now = datetime.now().isoformat()
 
-    new_task = {
+    task = {
         "id": next_id(tasks),
-        "description": task_description,
+        "description": description,
         "status": Status.TODO.value,
         "created_at": now,
         "updated_at": now,
     }
 
-    tasks.append(new_task)
-    print(f"Task added successfully (ID: {new_task['id']})")
-    return new_task
+    tasks.append(task)
+    print(f"Task added successfully (ID: {task['id']})")
+    return True
 
 
 def remove(tasks: list, task_id: int) -> bool:
     if not check_list(tasks):
         return False
 
-    original_length = len(tasks)
-    tasks[:] = [task for task in tasks if task["id"] != task_id]
+    for task in tasks:
+        if task["id"] == task_id:
+            tasks.remove(task)
+            print(f"Task removed successfully (ID: {task_id})")
+            return True
 
-    if len(tasks) == original_length:
-        print(f"No task found with ID: {task_id}")
-        return False
-
-    print(f"Task removed successfully (ID: {task_id})")
-    return True
+    print(f"No task found with ID: {task_id}")
+    return False
 
 
-def update(tasks: list, task_id: int, task_description: str) -> bool:
+def update(tasks: list, task_id: int, description: str) -> bool:
     if not check_list(tasks):
         return False
 
-    now = datetime.now().isoformat()
-
     for task in tasks:
         if task["id"] == task_id:
-            task["description"] = task_description
-            task["updated_at"] = now
+            task["description"] = description
+            task["updated_at"] = datetime.now().isoformat()
             print(f"Task updated successfully (ID: {task_id})")
             return True
 
@@ -91,57 +104,52 @@ def update(tasks: list, task_id: int, task_description: str) -> bool:
     return False
 
 
+def mark_status(tasks: list, task_id: int, status: Status) -> bool:
+    if not check_list(tasks):
+        return False
+
+    for task in tasks:
+        if task["id"] == task_id:
+            task["status"] = status.value
+            task["updated_at"] = datetime.now().isoformat()
+            print(f"Task marked as {status.value} (ID: {task_id})")
+            return True
+
+    print(f"No task found with ID: {task_id}")
+    return False
+
+
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: main.py <command> [arguments]")
-        sys.exit(1)
+    require_args(2, "main.py <command> [arguments]")
 
-    task_function = sys.argv[1]
+    command = sys.argv[1]
     tasks = load_tasks()
+    changed = False
 
-    match task_function:
+    match command:
         case "add":
-            if len(sys.argv) < 3:
-                print("Usage: main.py add <task_description>")
-                sys.exit(1)
+            require_args(3, "main.py add <task_description>")
+            changed = add(tasks, sys.argv[2])
 
-            task_description = sys.argv[2]
-            add(tasks, task_description)
-            save_tasks(tasks)
         case "remove":
-            if len(sys.argv) < 3:
-                print("Usage: main.py remove <task_id>")
-                sys.exit(1)
+            changed = remove(tasks, get_task_id())
 
-            try:
-                task_id = int(sys.argv[2])
-            except ValueError:
-                print("Task ID must be a number.")
-                sys.exit(1)
-
-            changed = remove(tasks, task_id)
-
-            if changed:
-                save_tasks(tasks)
         case "update":
-            if len(sys.argv) < 4:
-                print("Usage: main.py update <task_id> <new_description>")
-                sys.exit(1)
+            require_args(4, "main.py update <task_id> <new_description>")
+            changed = update(tasks, get_task_id(), sys.argv[3])
 
-            try:
-                task_id = int(sys.argv[2])
-            except ValueError:
-                print("Task ID must be a number.")
-                sys.exit(1)
+        case "mark-in-progress":
+            changed = mark_status(tasks, get_task_id(), Status.ACTIVE)
 
-            task_description = sys.argv[3]
-            changed = update(tasks, task_id, task_description)
+        case "mark-done":
+            changed = mark_status(tasks, get_task_id(), Status.COMPLETED)
 
-            if changed:
-                save_tasks(tasks)
         case _:
-            print(f"Unknown command: {task_function}")
+            print(f"Unknown command: {command}")
             sys.exit(1)
+
+    if changed:
+        save_tasks(tasks)
 
 
 if __name__ == "__main__":
