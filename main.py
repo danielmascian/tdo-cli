@@ -118,6 +118,22 @@ def mark_status(tasks: list, task_id: int, status: Status) -> bool:
     print(f"No task found with ID: {task_id}")
     return False
 
+def list_all(tasks: list, status: Status | None = None) -> bool:
+    if not check_list(tasks):
+        return False
+
+    found = False
+
+    for task in tasks:
+        if status is None or task["status"] == status.value:
+            print(task)
+            found = True
+
+    if not found:
+        print(f"No tasks found with status: {status.value}")
+
+    return found
+    
 
 def main():
     require_args(2, "main.py <command> [arguments]")
@@ -143,7 +159,17 @@ def main():
 
         case "mark-done":
             changed = mark_status(tasks, get_task_id(), Status.COMPLETED)
+        case "list":
+            list_all(tasks)
 
+        case "list-todo":
+            list_all(tasks, Status.TODO)
+
+        case "list-in-progress":
+            list_all(tasks, Status.ACTIVE)
+
+        case "list-done":
+            list_all(tasks, Status.COMPLETED)
         case _:
             print(f"Unknown command: {command}")
             sys.exit(1)
